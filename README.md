@@ -3,6 +3,6 @@ dbdiff
 
 A PHP script to compare MySQL database schemas.
 
-Developer By
+Developed By
 ============
 Savan Koradia [koradia.savan@gmail.com]
