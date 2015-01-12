@@ -281,13 +281,28 @@ class DbDiff {
             $decodedTriggres2 = json_decode(base64_decode($schema2['triggers'][$trigger_name]), true);
 
             foreach ($decodedTriggres1 as $field_name => $value) {
-                if ($decodedTriggres1[$field_name] != $decodedTriggres2[$field_name]) {
-                    $results[$trigger_name][] = 'Field <code><b>' . $field_name . '</b>'
-                            . '</code> differs between triggers for parameter \''
-                            . $field_name . '\'. <em>' . $schema1['name']
-                            . '</em> has \'' . $decodedTriggres1[$field_name]
-                            . '\' and <em>' . $schema2['name']
-                            . '</em> has \'' . $decodedTriggres2[$field_name] . '\'.';
+                $trigger1Detail = trim($decodedTriggres1[$field_name]);
+                $trigger2Detail = trim($decodedTriggres2[$field_name]);
+                if ($trigger1Detail != $trigger2Detail) {
+                    if ($field_name == "Statement") {
+                        $results[$trigger_name][] = "Field <code><b>" . $field_name . "</b><table>
+                        <tr>
+                            <th>{$schema1['name']}</th>
+                            <th>{$schema2['name']}</th>
+                        </tr>
+                        <tr>
+                            <td><textarea>$trigger1Detail</textarea></td>
+                            <td><textarea>$trigger2Detail</textarea></td>
+                        </tr>
+                    </table>";
+                    } else {
+                        $results[$trigger_name][] = 'Field <code><b>' . $field_name . '</b>'
+                                . '</code> differs between triggers for parameter \''
+                                . $field_name . '\'. <em>' . $schema1['name']
+                                . '</em> has \'' . $decodedTriggres1[$field_name] . '\''
+                                . 'and <em>' . $schema2['name']
+                                . '</em> has \'' . $decodedTriggres2[$field_name] . '\'.';
+                    }
                 }
             }
         }
