@@ -81,8 +81,8 @@ function echo_error($error) {
  * @return void
  */
 function export_schema($config) {
-
-    $result = DbDiff::export($config['config'], $config['name']);
+    $dbDiff = new DbDiff();
+    $result = $dbDiff->export($config['config'], $config['name']);
 
     if ($result == null) {
         echo_error('Couldn\'t connect to database: ' . mysql_error());
@@ -137,13 +137,12 @@ function do_compare($schema1, $schema2) {
 
     $unserialized_schema1 = unserialize(strip_nl($schema1));
     $unserialized_schema2 = unserialize(strip_nl($schema2));
-
-    $results = DbDiff::compare($unserialized_schema1, $unserialized_schema2);
+    $dbDiff = new DbDiff();
+    $results = $dbDiff->compare($unserialized_schema1, $unserialized_schema2);
 
     if (count($results) > 0) {
 
-        echo '<h3>Found differences in ' . count($results) . ' table' . s(count($results)) . ':</h3>';
-
+        echo '<h3>Found differences: ' . count($results) . ' </h3>';
         echo '<ul id="differences">';
         foreach ($results as $table_name => $differences) {
 
@@ -231,9 +230,9 @@ function do_compare($schema1, $schema2) {
                     } else {
                         $schema1 = $dbs_config[@$_POST['schema1']];
                         $schema2 = $dbs_config[@$_POST['schema2']];
-
-                        $schema1 = serialize(DbDiff::export($schema1['config'], $schema1['name']));
-                        $schema2 = serialize(DbDiff::export($schema2['config'], $schema2['name']));
+                        $dbDiff = new DbDiff();
+                        $schema1 = serialize($dbDiff->export($schema1['config'], $schema1['name']));
+                        $schema2 = serialize($dbDiff->export($schema2['config'], $schema2['name']));
                     }
 
                     do_compare($schema1, $schema2);

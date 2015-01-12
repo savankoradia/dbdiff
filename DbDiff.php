@@ -46,8 +46,9 @@ class DbDiff {
                 $tables[$table_name][$row['Field']] = $row;
             }
         }
-        
+
         //triggers
+        $triggers = array();
         $triggerResult = mysql_query("show triggers");
         while ($triggerRow = mysql_fetch_row($triggerResult)) {
             $array = array(
@@ -66,13 +67,35 @@ class DbDiff {
             $triggers[$triggerRow[0]] = base64_encode(json_encode($array));
         }
 
+        //procedure
+        $procedures = array();
+        $procedureResult = mysql_query("show procedure status");
+        while ($procedureRow = mysql_fetch_row($procedureResult)) {
+            if ($procedureRow[0] == $config['name']) {
+                $array = array(
+                    'name' => $procedureRow[1],
+                    'type' => $procedureRow[2],
+                    'definer' => $procedureRow[3],
+                    'modified' => $procedureRow[4],
+                    'created' => $procedureRow[5],
+                    'security_type' => $procedureRow[6],
+                    'comment' => $procedureRow[7],
+                    'character_set_client' => $procedureRow[8],
+                    'collation_connection' => $procedureRow[9],
+                    'db_collation' => $procedureRow[10],
+                );
+                $procedures[$procedureRow[1]] = base64_encode(json_encode($array));
+            }
+        }
+
         mysql_close();
 
         $data = array(
             'name' => $name,
             'time' => time(),
             'tables' => $tables,
-            'triggers' => $triggers
+            'triggers' => $triggers,
+            'procedures' => $procedures
         );
 
         return $data;
@@ -89,9 +112,16 @@ class DbDiff {
 
         $compareTables = self::compareTables($schema1, $schema2);
         $compareTriggers = self::compareTriggers($schema1, $schema2);
-        return array_merge($compareTables, $compareTriggers);
+        $compareProcedures = self::compareProcedures($schema1, $schema2);
+        return array_merge($compareTables, $compareTriggers, $compareProcedures);
     }
 
+    /**
+     * Compare tables, fields and types
+     * @param type $schema1
+     * @param type $schema2
+     * @return string
+     */
     public static function compareTables($schema1, $schema2) {
         $tables1 = array_keys($schema1['tables']);
         $tables2 = array_keys($schema2['tables']);
@@ -166,6 +196,12 @@ class DbDiff {
         return $results;
     }
 
+    /**
+     * Compare triggers in both tables
+     * @param type $schema1
+     * @param type $schema2
+     * @return string
+     */
     public static function compareTriggers($schema1, $schema2) {
         $triggers1 = !empty($schema1['triggers']) ? array_keys($schema1['triggers']) : array();
         $triggers2 = !empty($schema2['triggers']) ? array_keys($schema2['triggers']) : array();
@@ -200,6 +236,55 @@ class DbDiff {
                             . '</em> has \'' . $decodedTriggres1[$field_name]
                             . '\' and <em>' . $schema2['name']
                             . '</em> has \'' . $decodedTriggres2[$field_name] . '\'.';
+                }
+            }
+        }
+        return $results;
+    }
+
+    /**
+     * Compare procedures in both table
+     * @param type $schema1
+     * @param type $schema2
+     * @return string
+     */
+    public static function compareProcedures($schema1, $schema2) {
+        $procedures1 = !empty($schema1['procedures']) ? array_keys($schema1['procedures']) : array();
+        print_r($procedures1);
+        $procedures2 = !empty($schema2['procedures']) ? array_keys($schema2['procedures']) : array();
+        print_r($procedures2);
+        $procedures = array_unique(array_merge($procedures1, $procedures2));
+        print_r($procedures);
+        $results = array();
+        foreach ($procedures as $procedure_name) {
+            //check procedure exists in both table
+            if (!isset($schema1['procedures'][$procedure_name])) {
+                $results[$procedure_name][] = '<em>' . $schema1['name']
+                        . '</em> is missing procedure: <code>' . $procedure_name
+                        . '</code>.';
+
+                continue;
+            }
+            if (!isset($schema2['procedures'][$procedure_name])) {
+                $results[$procedure_name][] = '<em>' . $schema2['name']
+                        . '</em> is missing procedure: <code>' . $procedure_name
+                        . '</code>.';
+
+                continue;
+            }
+
+            //compare data of procedures
+            $decodedProcedures1 = json_decode(base64_decode($schema1['procedures'][$procedure_name]), true);
+            $decodedProcedures2 = json_decode(base64_decode($schema2['procedures'][$procedure_name]), true);
+
+            foreach ($decodedProcedures1 as $field_name => $value) {
+                if ($decodedProcedures1[$field_name] != $decodedProcedures2[$field_name]) {
+                    $results[$procedure_name][] = 'Field <code><b>' . $field_name . '</b>'
+                            . '</code> differs between triggers for parameter \''
+                            . $field_name . '\'. <em>' . $schema1['name']
+                            . '</em> has \'' . $decodedProcedures1[$field_name]
+                            . '\' and <em>' . $schema2['name']
+                            . '</em> has \'' . $decodedProcedures2[$field_name] . '\'.';
                 }
             }
         }
