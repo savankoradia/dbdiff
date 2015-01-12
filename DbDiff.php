@@ -45,6 +45,11 @@ class DbDiff {
             while ($row = mysql_fetch_assoc($result)) {
                 $tables[$table_name][$row['Field']] = $row;
             }
+
+            $result2 = mysql_query("SHOW INDEX FROM {$config['name']}.{$table_name}", $db);
+            while ($row = mysql_fetch_assoc($result2)) {
+                $tables[$table_name]['indexes'][$row['Key_name']] = $row;
+            }
         }
 
         //triggers
@@ -154,11 +159,11 @@ class DbDiff {
 
             // Check fields exist in both tables
 
-            $fields = array_merge($schema1['tables'][$table_name], $schema2['tables'][$table_name]);
+            $fields = array_merge($schema1['tables'][$table_name]['columns'], $schema2['tables'][$table_name]['columns']);
 
             foreach ($fields as $field_name => $field) {
 
-                if (!isset($schema1['tables'][$table_name][$field_name])) {
+                if (!isset($schema1['tables'][$table_name]['columns'][$field_name])) {
 
                     $results[$table_name][] = '<em>' . $schema1['name']
                             . '</em> is missing field: <code>' . $field_name
@@ -167,7 +172,7 @@ class DbDiff {
                     continue;
                 }
 
-                if (!isset($schema2['tables'][$table_name][$field_name])) {
+                if (!isset($schema2['tables'][$table_name]['columns'][$field_name])) {
 
                     $results[$table_name][] = '<em>' . $schema2['name']
                             . '</em> is missing field: <code>' . $field_name
@@ -178,12 +183,59 @@ class DbDiff {
 
                 // Check that the specific parameters of the fields match
 
-                $s1_params = $schema1['tables'][$table_name][$field_name];
-                $s2_params = $schema2['tables'][$table_name][$field_name];
+                $s1_params = $schema1['tables'][$table_name]['columns'][$field_name];
+                $s2_params = $schema2['tables'][$table_name]['columns'][$field_name];
 
                 foreach ($s1_params as $name => $details) {
+                    if ('Key' == $name) {
+                        continue;
+                    }
                     if ($s1_params[$name] != $s2_params[$name]) {
                         $results[$table_name][] = 'Field <code>' . $field_name
+                                . '</code> differs between databases for parameter \''
+                                . $name . '\'. <em>' . $schema1['name']
+                                . '</em> has \'' . $s1_params[$name]
+                                . '\' and <em>' . $schema2['name']
+                                . '</em> has \'' . $s2_params[$name] . '\'.';
+                    }
+                }
+            }
+
+            // Check indexes exist in both tables
+
+            $indexes = array_merge($schema1['tables'][$table_name]['indexes'], $schema2['tables'][$table_name]['indexes']);
+
+            foreach ($indexes as $index_name => $index) {
+
+                if (!isset($schema1['tables'][$table_name]['indexes'][$index_name])) {
+
+                    $results[$table_name][] = '<em>' . $schema1['name']
+                            . '</em> is missing index: <code>' . $index_name
+                            . '</code>';
+
+                    continue;
+                }
+
+                if (!isset($schema2['tables'][$table_name]['indexes'][$index_name])) {
+
+                    $results[$table_name][] = '<em>' . $schema2['name']
+                            . '</em> is missing index: <code>' . $index_name
+                            . '</code>';
+
+                    continue;
+                }
+
+                // Check that the specific parameters of the fields match
+
+                $s1_params = $schema1['tables'][$table_name]['indexes'][$index_name];
+                $s2_params = $schema2['tables'][$table_name]['indexes'][$index_name];
+
+                foreach ($s1_params as $name => $details) {
+                    if ('Cardinality' == $name) {
+                        continue;
+                    }
+                    if (isset($s1_params[$name]) && isset($s2_params[$name]) && $s1_params[$name] != $s2_params[$name]) {
+                        $results[$table_name][] = 'Index <code>' . $index_name
                                 . '</code> differs between databases for parameter \''
                                 . $name . '\'. <em>' . $schema1['name']
                                 . '</em> has \'' . $s1_params[$name]
