@@ -250,11 +250,8 @@ class DbDiff {
      */
     public static function compareProcedures($schema1, $schema2) {
         $procedures1 = !empty($schema1['procedures']) ? array_keys($schema1['procedures']) : array();
-        print_r($procedures1);
         $procedures2 = !empty($schema2['procedures']) ? array_keys($schema2['procedures']) : array();
-        print_r($procedures2);
         $procedures = array_unique(array_merge($procedures1, $procedures2));
-        print_r($procedures);
         $results = array();
         foreach ($procedures as $procedure_name) {
             //check procedure exists in both table
